@@ -1,5 +1,7 @@
 using ConfigSharp.Core;
 using System.Text.Json;
+using ConfigSharp.Encryption;
+using ConfigSharp.Providers.Json;
 using Technetium.Debug;
 using Technetium.Text;
 
@@ -34,7 +36,7 @@ class Program
         Console.WriteLine("========================\n");
 
         // Create a configuration manager
-        var configManager = new ConfigManager();
+        var configManager = new ConfigManager<JsonConfigProvider, AesEncryptionProvider>();
 
         // Create sample configuration
         var config = new AppConfig

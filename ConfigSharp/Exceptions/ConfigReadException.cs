@@ -34,7 +34,7 @@ public class ConfigReadException : Exception
     /// </summary>
     /// <param name="filePath">The path of the file that couldn't be read</param>
     /// <param name="message">The message that describes the error</param>
-    public ConfigReadException(string filePath, string message) : base($"Error reading config file '{filePath}': {message}")
+    public ConfigReadException(string? filePath, string message) : base($"Error reading config file '{filePath}': {message}")
     {
         FilePath = filePath;
     }
@@ -45,7 +45,7 @@ public class ConfigReadException : Exception
     /// <param name="filePath">The path of the file that couldn't be read</param>
     /// <param name="message">The message that describes the error</param>
     /// <param name="innerException">The exception that is the cause of the current exception</param>
-    public ConfigReadException(string filePath, string message, Exception innerException) : base($"Error reading config file '{filePath}': {message}", innerException)
+    public ConfigReadException(string? filePath, string message, Exception innerException) : base($"Error reading config file '{filePath}': {message}", innerException)
     {
         FilePath = filePath;
     }
