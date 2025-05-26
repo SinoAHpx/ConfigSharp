@@ -1,8 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigSharp", "ConfigSharp\ConfigSharp.csproj", "{9CF102D6-9CCF-4981-8D9C-A704669E8EE9}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConfigSharp.Test", "ConfigSharp.Test\ConfigSharp.Test.csproj", "{DE2C3913-E2B3-4AE6-881F-C226049C26D6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Example", "Example\Example.csproj", "{65565144-D62D-4782-AA94-2A88158391B3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,5 +21,9 @@ Global
 		{DE2C3913-E2B3-4AE6-881F-C226049C26D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DE2C3913-E2B3-4AE6-881F-C226049C26D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DE2C3913-E2B3-4AE6-881F-C226049C26D6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65565144-D62D-4782-AA94-2A88158391B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65565144-D62D-4782-AA94-2A88158391B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65565144-D62D-4782-AA94-2A88158391B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65565144-D62D-4782-AA94-2A88158391B3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -1,0 +1,10 @@
+{
+	"databaseConnection": "Server=localhost;Database=MyApp;Trusted_Connection=true",
+	"apiKey": "your-api-key-here",
+	"settings": {
+		"enableLogging": true,
+		"maxRetries": 3,
+		"timeout": 30000
+	},
+	"features": ["feature1", "feature2", "feature3"]
+}
