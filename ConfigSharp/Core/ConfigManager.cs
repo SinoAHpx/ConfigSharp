@@ -9,7 +9,7 @@ namespace ConfigSharp.Core;
 /// <summary>
 /// Main configuration manager that orchestrates loading and saving configurations with optional encryption.
 /// </summary>
-public class ConfigManager : IConfigManager
+public class ConfigManager
 {
     private readonly IEncryptionProvider _encryptionProvider;
     private readonly JsonSerializerOptions? _jsonOptions;
