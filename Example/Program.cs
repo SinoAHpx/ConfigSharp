@@ -53,8 +53,8 @@ class Program
 
         try
         {
-            await configManager.SaveConfigAsync("example2-config.json", config);
-            var loadedConfig = await configManager.LoadConfigAsync<AppConfig>("example2-config.json");
+            await configManager.SaveAsync("example2-config.json", config);
+            var loadedConfig = await configManager.LoadAsync<AppConfig>("example2-config.json");
             Console.WriteLine(loadedConfig.EnabledFeatures?.Count == null);
             Console.WriteLine(loadedConfig.ApiKey == null);
 
