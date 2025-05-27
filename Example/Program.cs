@@ -36,7 +36,7 @@ class Program
         Console.WriteLine("========================\n");
 
         // Create a configuration manager
-        var configManager = new ConfigManager<JsonConfigProvider, AesEncryptionProvider>();
+        var configManager = new EncryptedConfigManager<JsonConfigProvider, AesEncryptionProvider>("mySecretPassword123");
 
         // Create sample configuration
         var config = new AppConfig
