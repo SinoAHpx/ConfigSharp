@@ -5,3 +5,5 @@ riderModule.iml
 /_ReSharper.Caches/
 .idea
 ConfigSharp.sln.DotSettings.user
+.json
+/Example/*.json

@@ -1,3 +1,6 @@
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using ConfigSharp.Encryption;
 using ConfigSharp.Exceptions;
 using ConfigSharp.Interfaces;
@@ -6,6 +9,7 @@ namespace ConfigSharp.Core;
 
 /// <summary>
 /// Configuration manager that orchestrates loading and saving configurations with encryption support.
+/// Supports property-level encryption using the ConfigEntry attribute.
 /// </summary>
 public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
     where TProvider : IConfigProvider
@@ -31,6 +35,7 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
 
     /// <summary>
     /// Loads configuration of the specified type from the given file path asynchronously.
+    /// Handles property-level encryption based on ConfigEntry attributes.
     /// </summary>
     /// <typeparam name="T">The type of configuration to load</typeparam>
     /// <param name="filePath">The path to the configuration file</param>
@@ -38,6 +43,7 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
     /// <exception cref="ConfigReadException">Thrown when the configuration cannot be loaded</exception>
     /// <exception cref="EncryptionException">Thrown when decryption fails</exception>
     /// <exception cref="ArgumentException">Thrown if filePath is null or empty.</exception>
+    /// <exception cref="ConfigValidationException">Thrown when a required property is null</exception>
     public async Task<T> LoadAsync<T>(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -47,11 +53,31 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
 
         try
         {
-            var encryptedContent = await ConfigProvider.LoadAsStringAsync(filePath);
-            var decryptedContent = await EncryptionProvider.DecryptAsync(encryptedContent, Password);
-            return ConfigProvider.Deserialize<T>(decryptedContent);
+            var content = await ConfigProvider.LoadAsStringAsync(filePath);
+
+            // Parse the content as JSON to handle property-level encryption
+            var jsonDocument = JsonDocument.Parse(content);
+            var jsonObject = JsonSerializer.Deserialize<JsonNode>(content);
+
+            if (jsonObject is JsonObject configObject)
+            {
+                // Process encrypted properties
+                await ProcessEncryptedPropertiesForLoadingAsync<T>(configObject);
+
+                // Serialize back to string for final deserialization
+                content = jsonObject.ToJsonString();
+            }
+
+            // Deserialize the processed content
+            var config = ConfigProvider.Deserialize<T>(content);
+
+            // Validate required properties
+            ValidateRequiredProperties(config);
+
+            return config;
         }
-        catch (Exception ex) when (ex is not ConfigReadException && ex is not EncryptionException && ex is not ArgumentException)
+        catch (Exception ex) when (ex is not ConfigReadException && ex is not EncryptionException &&
+                                 ex is not ArgumentException && ex is not ConfigValidationException)
         {
             throw new ConfigReadException(filePath, "Unexpected error occurred while loading configuration", ex);
         }
@@ -59,6 +85,7 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
 
     /// <summary>
     /// Saves the specified configuration to the given file path asynchronously.
+    /// Handles property-level encryption based on ConfigEntry attributes.
     /// </summary>
     /// <typeparam name="T">The type of configuration to save</typeparam>
     /// <param name="filePath">The path where to save the configuration file</param>
@@ -67,6 +94,7 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
     /// <exception cref="EncryptionException">Thrown when encryption fails</exception>
     /// <exception cref="ArgumentException">Thrown if filePath is null or empty.</exception>
     /// <exception cref="ArgumentNullException">Thrown if configData is null.</exception>
+    /// <exception cref="ConfigValidationException">Thrown when a required property is null</exception>
     public async Task SaveAsync<T>(string filePath, T configData)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -80,11 +108,30 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
 
         try
         {
+            // Validate required properties
+            ValidateRequiredProperties(configData);
+
+            // Serialize the data to JSON
             var serializedData = ConfigProvider.Serialize(configData);
-            var encryptedContent = await EncryptionProvider.EncryptAsync(serializedData, Password);
-            await ConfigProvider.SaveAsStringAsync(filePath, encryptedContent);
+
+            // Parse the serialized data to handle property-level encryption
+            var jsonObject = JsonSerializer.Deserialize<JsonNode>(serializedData);
+
+            if (jsonObject is JsonObject configObject)
+            {
+                // Process encrypted properties
+                await ProcessEncryptedPropertiesForSavingAsync<T>(configObject);
+
+                // Serialize back to string
+                serializedData = jsonObject.ToJsonString();
+            }
+
+            // Save the processed content
+            await ConfigProvider.SaveAsStringAsync(filePath, serializedData);
         }
-        catch (Exception ex) when (ex is not ConfigReadException && ex is not EncryptionException && ex is not ArgumentException && ex is not ArgumentNullException)
+        catch (Exception ex) when (ex is not ConfigReadException && ex is not EncryptionException &&
+                                 ex is not ArgumentException && ex is not ArgumentNullException &&
+                                 ex is not ConfigValidationException)
         {
             throw new ConfigReadException(filePath, "Unexpected error occurred while saving configuration", ex);
         }
@@ -92,6 +139,7 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
 
     /// <summary>
     /// Loads configuration of the specified type from the given file path synchronously.
+    /// Handles property-level encryption based on ConfigEntry attributes.
     /// </summary>
     /// <typeparam name="T">The type of configuration to load</typeparam>
     /// <param name="filePath">The path to the configuration file</param>
@@ -99,6 +147,7 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
     /// <exception cref="ConfigReadException">Thrown when the configuration cannot be loaded</exception>
     /// <exception cref="EncryptionException">Thrown when decryption fails</exception>
     /// <exception cref="ArgumentException">Thrown if filePath is null or empty.</exception>
+    /// <exception cref="ConfigValidationException">Thrown when a required property is null</exception>
     public T Load<T>(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -108,11 +157,31 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
 
         try
         {
-            var encryptedContent = ConfigProvider.LoadAsString(filePath);
-            var decryptedContent = EncryptionProvider.Decrypt(encryptedContent, Password);
-            return ConfigProvider.Deserialize<T>(decryptedContent);
+            var content = ConfigProvider.LoadAsString(filePath);
+
+            // Parse the content as JSON to handle property-level encryption
+            var jsonDocument = JsonDocument.Parse(content);
+            var jsonObject = JsonSerializer.Deserialize<JsonNode>(content);
+
+            if (jsonObject is JsonObject configObject)
+            {
+                // Process encrypted properties
+                ProcessEncryptedPropertiesForLoading<T>(configObject);
+
+                // Serialize back to string for final deserialization
+                content = jsonObject.ToJsonString();
+            }
+
+            // Deserialize the processed content
+            var config = ConfigProvider.Deserialize<T>(content);
+
+            // Validate required properties
+            ValidateRequiredProperties(config);
+
+            return config;
         }
-        catch (Exception ex) when (ex is not ConfigReadException && ex is not EncryptionException && ex is not ArgumentException)
+        catch (Exception ex) when (ex is not ConfigReadException && ex is not EncryptionException &&
+                                 ex is not ArgumentException && ex is not ConfigValidationException)
         {
             throw new ConfigReadException(filePath, "Unexpected error occurred while loading configuration", ex);
         }
@@ -120,6 +189,7 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
 
     /// <summary>
     /// Saves the specified configuration to the given file path synchronously.
+    /// Handles property-level encryption based on ConfigEntry attributes.
     /// </summary>
     /// <typeparam name="T">The type of configuration to save</typeparam>
     /// <param name="filePath">The path where to save the configuration file</param>
@@ -128,6 +198,7 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
     /// <exception cref="EncryptionException">Thrown when encryption fails</exception>
     /// <exception cref="ArgumentException">Thrown if filePath is null or empty.</exception>
     /// <exception cref="ArgumentNullException">Thrown if configData is null.</exception>
+    /// <exception cref="ConfigValidationException">Thrown when a required property is null</exception>
     public void Save<T>(string filePath, T configData)
     {
         if (string.IsNullOrWhiteSpace(filePath))
@@ -141,13 +212,168 @@ public class EncryptedConfigManager<TProvider, TEncryption> : IConfigManager
 
         try
         {
+            // Validate required properties
+            ValidateRequiredProperties(configData);
+
+            // Serialize the data to JSON
             var serializedData = ConfigProvider.Serialize(configData);
-            var encryptedContent = EncryptionProvider.Encrypt(serializedData, Password);
-            ConfigProvider.SaveAsString(filePath, encryptedContent);
+
+            // Parse the serialized data to handle property-level encryption
+            var jsonObject = JsonSerializer.Deserialize<JsonNode>(serializedData);
+
+            if (jsonObject is JsonObject configObject)
+            {
+                // Process encrypted properties
+                ProcessEncryptedPropertiesForSaving<T>(configObject);
+
+                // Serialize back to string
+                serializedData = jsonObject.ToJsonString();
+            }
+
+            // Save the processed content
+            ConfigProvider.SaveAsString(filePath, serializedData);
         }
-        catch (Exception ex) when (ex is not ConfigReadException && ex is not EncryptionException && ex is not ArgumentException && ex is not ArgumentNullException)
+        catch (Exception ex) when (ex is not ConfigReadException && ex is not EncryptionException &&
+                                 ex is not ArgumentException && ex is not ArgumentNullException &&
+                                 ex is not ConfigValidationException)
         {
             throw new ConfigReadException(filePath, "Unexpected error occurred while saving configuration", ex);
+        }
+    }
+
+    /// <summary>
+    /// Validates that all required properties have non-null values.
+    /// </summary>
+    /// <typeparam name="T">The type of configuration to validate</typeparam>
+    /// <param name="configData">The configuration object to validate</param>
+    /// <exception cref="ConfigValidationException">Thrown when a required property is null</exception>
+    private void ValidateRequiredProperties<T>(T configData)
+    {
+        if (configData == null)
+        {
+            return;
+        }
+
+        var properties = typeof(T).GetProperties();
+        foreach (var property in properties)
+        {
+            var configEntryAttribute = property.GetCustomAttribute<ConfigEntryAttribute>();
+            if (configEntryAttribute != null && configEntryAttribute.Required)
+            {
+                var value = property.GetValue(configData);
+                if (value == null)
+                {
+                    throw new ConfigValidationException(property.Name, "Required property cannot be null");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes encrypted properties for saving.
+    /// </summary>
+    /// <typeparam name="T">The type of configuration being saved</typeparam>
+    /// <param name="jsonObject">The JSON object representing the configuration</param>
+    private void ProcessEncryptedPropertiesForSaving<T>(JsonObject jsonObject)
+    {
+        var properties = typeof(T).GetProperties();
+        foreach (var property in properties)
+        {
+            var configEntryAttribute = property.GetCustomAttribute<ConfigEntryAttribute>();
+            if (configEntryAttribute != null && configEntryAttribute.Encrypt)
+            {
+                var propertyName = configEntryAttribute.Name ?? property.Name;
+                if (jsonObject.TryGetPropertyValue(propertyName, out var propertyValue) && propertyValue != null)
+                {
+                    var stringValue = propertyValue.ToString();
+                    if (!string.IsNullOrEmpty(stringValue))
+                    {
+                        var encryptedValue = EncryptionProvider.Encrypt(stringValue, Password);
+                        jsonObject[propertyName] = encryptedValue;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes encrypted properties for saving asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of configuration being saved</typeparam>
+    /// <param name="jsonObject">The JSON object representing the configuration</param>
+    private async Task ProcessEncryptedPropertiesForSavingAsync<T>(JsonObject jsonObject)
+    {
+        var properties = typeof(T).GetProperties();
+        foreach (var property in properties)
+        {
+            var configEntryAttribute = property.GetCustomAttribute<ConfigEntryAttribute>();
+            if (configEntryAttribute != null && configEntryAttribute.Encrypt)
+            {
+                var propertyName = configEntryAttribute.Name ?? property.Name;
+                if (jsonObject.TryGetPropertyValue(propertyName, out var propertyValue) && propertyValue != null)
+                {
+                    var stringValue = propertyValue.ToString();
+                    if (!string.IsNullOrEmpty(stringValue))
+                    {
+                        var encryptedValue = await EncryptionProvider.EncryptAsync(stringValue, Password);
+                        jsonObject[propertyName] = encryptedValue;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes encrypted properties for loading.
+    /// </summary>
+    /// <typeparam name="T">The type of configuration being loaded</typeparam>
+    /// <param name="jsonObject">The JSON object representing the configuration</param>
+    private void ProcessEncryptedPropertiesForLoading<T>(JsonObject jsonObject)
+    {
+        var properties = typeof(T).GetProperties();
+        foreach (var property in properties)
+        {
+            var configEntryAttribute = property.GetCustomAttribute<ConfigEntryAttribute>();
+            if (configEntryAttribute != null && configEntryAttribute.Encrypt)
+            {
+                var propertyName = configEntryAttribute.Name ?? property.Name;
+                if (jsonObject.TryGetPropertyValue(propertyName, out var propertyValue) && propertyValue != null)
+                {
+                    var encryptedValue = propertyValue.ToString();
+                    if (!string.IsNullOrEmpty(encryptedValue))
+                    {
+                        var decryptedValue = EncryptionProvider.Decrypt(encryptedValue, Password);
+                        jsonObject[propertyName] = decryptedValue;
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Processes encrypted properties for loading asynchronously.
+    /// </summary>
+    /// <typeparam name="T">The type of configuration being loaded</typeparam>
+    /// <param name="jsonObject">The JSON object representing the configuration</param>
+    private async Task ProcessEncryptedPropertiesForLoadingAsync<T>(JsonObject jsonObject)
+    {
+        var properties = typeof(T).GetProperties();
+        foreach (var property in properties)
+        {
+            var configEntryAttribute = property.GetCustomAttribute<ConfigEntryAttribute>();
+            if (configEntryAttribute != null && configEntryAttribute.Encrypt)
+            {
+                var propertyName = configEntryAttribute.Name ?? property.Name;
+                if (jsonObject.TryGetPropertyValue(propertyName, out var propertyValue) && propertyValue != null)
+                {
+                    var encryptedValue = propertyValue.ToString();
+                    if (!string.IsNullOrEmpty(encryptedValue))
+                    {
+                        var decryptedValue = await EncryptionProvider.DecryptAsync(encryptedValue, Password);
+                        jsonObject[propertyName] = decryptedValue;
+                    }
+                }
+            }
         }
     }
 }
