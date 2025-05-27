@@ -53,10 +53,10 @@ class Program
 
         try
         {
-            await configManager.SaveAsync("example2-config.json", config);
+            // await configManager.SaveAsync("example2-config.json", config);
             var loadedConfig = await configManager.LoadAsync<AppConfig>("example2-config.json");
-            Console.WriteLine(loadedConfig.EnabledFeatures?.Count == null);
-            Console.WriteLine(loadedConfig.ApiKey == null);
+            Console.WriteLine(loadedConfig.Serialize(true, true));
+            // Console.WriteLine(loadedConfig.ApiKey == null);
 
         }
         catch (Exception ex)

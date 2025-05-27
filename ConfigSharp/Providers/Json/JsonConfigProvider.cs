@@ -21,7 +21,7 @@ public class JsonConfigProvider : IConfigProvider
         {
             WriteIndented = true,
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = false
         };
     }
     
